@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>시기능훈련 처방 도구</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: 검안 기록지처럼 — 좌측 입력 차트(고정폭), 우측 단계별 판정 레일. 숫자는 모노 탭눈금. */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --ink:#18232a; --muted:#5b6a72; --line:#d5dde0;
+  --accent:#0f6a73; --accent-soft:#e1f0f0; --bo:#2f5aa8; --bi:#a8532f;
+  --ok:#2e7d4f; --ok-soft:#e5f3ea; --warn:#a46a00; --warn-soft:#fbf1dc; --bad:#b0362c; --bad-soft:#fbe7e4;
+  --font:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11181b; --panel:#182227; --ink:#e3ebee; --muted:#93a3aa; --line:#2b3a40;
+  --accent:#5cc0c6; --accent-soft:#183a3d; --bo:#86a8ec; --bi:#e59a7a;
+  --ok:#6fcf97; --ok-soft:#173326; --warn:#f0b54a; --warn-soft:#3a2d12; --bad:#f08a7e; --bad-soft:#3d1e1b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11181b; --panel:#182227; --ink:#e3ebee; --muted:#93a3aa; --line:#2b3a40;
+  --accent:#5cc0c6; --accent-soft:#183a3d; --bo:#86a8ec; --bi:#e59a7a;
+  --ok:#6fcf97; --ok-soft:#173326; --warn:#f0b54a; --warn-soft:#3a2d12; --bad:#f08a7e; --bad-soft:#3d1e1b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14.5px;line-height:1.55}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:18px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:14px}
+h1{font-size:1.55rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 small{display:block;font-size:.8rem;font-weight:500;color:var(--muted);letter-spacing:.02em}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 14px;border-radius:6px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tabs button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:.8rem;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.form{padding:14px}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 6px}
+fieldset:first-of-type{border-top:0;padding-top:4px}
+legend{font-size:.74rem;font-weight:700;letter-spacing:.08em;color:var(--accent);text-transform:uppercase;padding:0}
+.row{display:grid;grid-template-columns:7.2em minmax(0,1fr);gap:8px;align-items:center;margin:6px 0}
+.row>label{font-size:.86rem;color:var(--muted)}
+.inl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+input[type=number]{width:4.6em;font-family:var(--mono);font-size:.95rem;padding:5px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums}
+select{font:inherit;font-size:.86rem;padding:5px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink)}
+.trip{display:grid;grid-template-columns:repeat(3,minmax(0,4.6em));gap:6px}
+.trip span{font-size:.68rem;color:var(--muted);text-align:center}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:.86rem;margin:5px 0}
+.chk input{margin-top:4px}
+.unit{font-size:.78rem;color:var(--muted)}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.presets button{font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:4px 9px;border-radius:999px;cursor:pointer}
+.presets button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.banner{font-size:.8rem;padding:6px 10px;border-radius:6px;background:var(--warn-soft);color:var(--warn);margin-bottom:8px}
+/* result rail */
+.rail{display:flex;flex-direction:column;gap:12px}
+.step{padding:14px 16px;position:relative}
+.step h2{font-size:1rem;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.step h2 .n{font-family:var(--mono);font-size:.78rem;color:var(--bg);background:var(--ink);border-radius:4px;padding:1px 6px}
+.stop{border-color:var(--bad);background:var(--bad-soft)}
+.pill{display:inline-block;font-size:.74rem;font-weight:600;border-radius:999px;padding:1px 8px;margin-right:4px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-na{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tw{overflow-x:auto}
+.dx{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.dx .name{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
+.dx .en{font-family:var(--mono);color:var(--muted);font-size:.85rem}
+ul.ev{margin:6px 0 0;padding-left:1.1em}
+ul.ev li{margin:2px 0}
+.msg{font-size:.86rem;padding:8px 10px;border-radius:6px;margin-top:8px}
+.m-warn{background:var(--warn-soft);color:var(--warn)} .m-bad{background:var(--bad-soft);color:var(--bad)} .m-ok{background:var(--ok-soft);color:var(--ok)}
+.dir{display:flex;gap:10px;flex-wrap:wrap}
+.dir .box{flex:1 1 180px;border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.dir .k{font-size:.72rem;color:var(--muted);letter-spacing:.06em}
+.dir .v{font-weight:700;font-size:1.05rem}
+.v.bo{color:var(--bo)} .v.bi{color:var(--bi)}
+.phase{display:grid;grid-template-columns:5.2em minmax(0,1fr);gap:4px 12px;border-top:1px solid var(--line);padding:10px 0}
+.phase:first-of-type{border-top:0}
+.phase .tag{font-weight:700;font-size:.85rem}
+.phase .tag span{display:block;font-weight:400;font-size:.72rem;color:var(--muted)}
+.start{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.start .s{font-size:.8rem;border:1px dashed var(--accent);color:var(--accent);border-radius:5px;padding:2px 7px;font-family:var(--mono)}
+.foot{font-size:.76rem;color:var(--muted);margin-top:14px}
+/* calculators */
+.calcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:14px}
+.calc{padding:14px}
+.calc h3{margin:0 0 4px;font-size:.98rem}
+.calc .f{font-family:var(--mono);font-size:.76rem;color:var(--muted);margin-bottom:8px}
+.out{margin-top:10px;font-family:var(--mono);font-size:1.25rem;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums}
+.out small{display:block;font-family:var(--font);font-size:.78rem;font-weight:400;color:var(--muted)}
+.guide{padding:18px 20px;max-width:900px}
+.guide h3{margin:18px 0 6px;font-size:1rem}
+.guide p,.guide li{max-width:72ch}
+@media (prefers-reduced-motion:no-preference){.step{animation:in .25s ease-out both}@keyframes in{from{transform:translateY(4px)}to{transform:none}}}
+</style>
+</head>
+<body>
+
+<style>
+.org{display:flex;flex-wrap:wrap;gap:4px 8px;margin-bottom:6px}.org span{font-size:.74rem;font-weight:600;letter-spacing:.04em;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 9px}
+.npcg{display:grid;grid-template-columns:2.4em repeat(2,minmax(0,4.6em));gap:6px;align-items:center}
+.npcg span{font-size:.72rem;color:var(--muted)}
+.auto{font-size:.78rem;color:var(--accent);font-family:var(--mono)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.tools button{font:inherit;font-size:.82rem;font-weight:600;border:1px solid var(--accent);background:var(--panel);color:var(--accent);padding:5px 12px;border-radius:6px;cursor:pointer}
+.ev .sub{color:var(--muted)}
+.lv{font-family:var(--mono);font-size:.78rem}
+.credit{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between}
+textarea.copy{width:100%;min-height:8em;font-family:var(--mono);font-size:.78rem;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);padding:8px}
+</style>
+<div class="wrap">
+<header class="top">
+  <div><div class="org"><span>백석대학교 안경광학과</span><span>AX기반 시기능분석 및 시기능훈련</span></div><h1>시기능훈련 처방 도구<small>학생 배포용 실습 입력 · 처방 프로그램 — 검사값 → 관문 → 판별 → 1차 처치 → 훈련 처방</small></h1></div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="t-eng" aria-selected="true" data-p="p-eng">처방 엔진</button>
+    <button role="tab" id="t-calc" aria-selected="false" data-p="p-calc">스테이션 계산기</button>
+    <button role="tab" id="t-help" aria-selected="false" data-p="p-help">판정 기준</button>
+  </nav>
+</header>
+
+<section id="p-eng">
+<div class="grid">
+  <form class="panel form" id="f" autocomplete="off" onsubmit="return false">
+    <div class="presets" id="presets"></div>
+    <div class="banner" id="exbanner">예시 증례가 입력되어 있습니다. 값을 바꾸면 결과가 바로 다시 계산됩니다.</div>
+    <fieldset><legend>대상자 · 관문</legend>
+      <div class="row"><label for="age">나이</label><div class="inl"><input type="number" id="age" min="5" max="80"><span class="unit">세</span><span class="auto" id="hofv"></span></div></div>
+      <label class="chk"><input type="checkbox" id="g0">위험신호: 갑자기 생긴 지속 복시, 급성 편위, 시력 급감, 안구운동 제한, 신경학적 증상</label>
+      <label class="chk"><input type="checkbox" id="g1">굴절·안경 문제: 과·저교정, 광학중심 불일치, 피팅 불량</label>
+      <label class="chk"><input type="checkbox" id="g3">현성 편위(사시) 관찰</label>
+      <div class="row"><label for="w4n">Worth 4 dot</label><div class="inl"><select id="w4n" aria-label="Worth 4 dot 근거리"><option value="">근거리 —</option><option>정상융합</option><option>우안 억제</option><option>좌안 억제</option><option>교대 억제</option><option>복시</option></select><select id="w4d" aria-label="Worth 4 dot 원거리"><option value="">원거리 —</option><option>정상융합</option><option>우안 억제</option><option>좌안 억제</option><option>교대 억제</option><option>복시</option></select></div></div>
+      <div class="row"><label for="vert">수직사위</label><div class="inl"><input type="number" id="vert" min="0" step="0.5"><span class="unit">Δ (원·근 중 큰 값)</span></div></div>
+    </fieldset>
+    <fieldset><legend>안위 · AC/A (교정 상태)</legend>
+      <div class="row"><label for="pd">원거리 6 m</label><div class="inl"><input type="number" id="pd" min="0" step="0.5"><select id="pdD"><option value="XP">XP 외사위</option><option value="EP">EP 내사위</option><option value="Ortho">Ortho</option></select><span class="unit">Δ</span></div></div>
+      <div class="row"><label for="pn">근거리 40 cm</label><div class="inl"><input type="number" id="pn" min="0" step="0.5"><select id="pnD"><option value="XP">XP 외사위</option><option value="EP">EP 내사위</option><option value="Ortho">Ortho</option></select><span class="unit">Δ</span></div></div>
+      <div class="row"><label for="aca">AC/A</label><div class="inl"><input type="number" id="aca" step="0.25"><span class="unit">Δ/D</span><span class="note">계산은 계산기 탭</span></div></div>
+    </fieldset>
+    <fieldset><legend>융합버전스 · NPC</legend>
+      <div class="row"><label>근거리 BO</label><div><div class="trip"><input type="number" id="bo1" aria-label="근거리 BO 흐림"><input type="number" id="bo2" aria-label="근거리 BO 분리"><input type="number" id="bo3" aria-label="근거리 BO 회복"></div><div class="trip"><span>흐림</span><span>분리</span><span>회복</span></div></div></div>
+      <div class="row"><label>근거리 BI</label><div class="trip"><input type="number" id="bi1" aria-label="근거리 BI 흐림"><input type="number" id="bi2" aria-label="근거리 BI 분리"><input type="number" id="bi3" aria-label="근거리 BI 회복"></div></div>
+      <div class="row"><label for="dbo">원거리 분리</label><div class="inl"><span class="unit">BO</span><input type="number" id="dbo"><span class="unit">BI</span><input type="number" id="dbi"><span class="unit">Δ</span></div></div>
+      <div class="row"><label>NPC (cm)</label><div class="npcg"><span></span><span>분리</span><span>회복</span>
+        <span>1회</span><input type="number" id="n1b" step="0.5" aria-label="NPC 1회 분리"><input type="number" id="n1r" step="0.5" aria-label="NPC 1회 회복">
+        <span>2회</span><input type="number" id="n2b" step="0.5" aria-label="NPC 2회 분리"><input type="number" id="n2r" step="0.5" aria-label="NPC 2회 회복">
+        <span>3회</span><input type="number" id="n3b" step="0.5" aria-label="NPC 3회 분리"><input type="number" id="n3r" step="0.5" aria-label="NPC 3회 회복"></div></div>
+      <div class="row"><label></label><span class="auto" id="npcv"></span></div>
+      <div class="row"><label for="vf">융합용이성</label><div class="inl"><input type="number" id="vf"><span class="unit">cpm</span><select id="vfS" aria-label="융합용이성 실패 방향"><option value="">실패 방향 없음</option><option value="BO">BO</option><option value="BI">BI</option><option value="pm">양방향</option></select></div></div>
+    </fieldset>
+    <fieldset><legend>조절기능</legend>
+      <div class="row"><label for="ampR">조절력 R / L</label><div class="inl"><input type="number" id="ampR" step="0.25"><input type="number" id="ampL" step="0.25"><span class="unit">D</span></div></div>
+      <div class="row"><label for="nra">NRA / PRA</label><div class="inl"><input type="number" id="nra" step="0.25"><input type="number" id="pra" step="0.25"><span class="unit">D</span></div></div>
+      <div class="row"><label for="lag">조절반응</label><div class="inl"><input type="number" id="lag" step="0.25"><span class="unit">D (MEM/BCC, + = lag)</span></div></div>
+      <div class="row"><label for="mafR">MAF OD</label><div class="inl"><input type="number" id="mafR"><span class="unit">cpm</span><select id="mafRS" aria-label="MAF OD 실패"><option value="">실패 없음</option><option value="+">플러스</option><option value="-">마이너스</option><option value="pm">양방향</option></select></div></div>
+      <div class="row"><label for="mafL">MAF OS</label><div class="inl"><input type="number" id="mafL"><span class="unit">cpm</span><select id="mafLS" aria-label="MAF OS 실패"><option value="">실패 없음</option><option value="+">플러스</option><option value="-">마이너스</option><option value="pm">양방향</option></select></div></div>
+      <div class="row"><label for="baf">BAF</label><div class="inl"><input type="number" id="baf"><span class="unit">cpm</span><select id="bafS" aria-label="BAF 실패"><option value="">실패 없음</option><option value="+">플러스</option><option value="-">마이너스</option><option value="pm">양방향</option></select></div></div>
+    </fieldset>
+    <p class="note">빈칸은 “미입력”으로 처리하며 추정하지 않습니다. 내부 부호: 외사위 −, 내사위 + (분석 도구와 동일).</p>
+  </form>
+  <div class="rail" id="out" aria-live="polite"></div>
+</div>
+</section>
+
+<section id="p-calc" hidden>
+  <div class="calcs">
+    <div class="panel calc"><h3>계산형 AC/A</h3><div class="f">AC/A = PD(cm) + (근거리 사위 − 원거리 사위) ÷ 근거리 요구(D) · 외사위 −, 내사위 +</div>
+      <div class="inl"><label for="a1p">원거리 PD</label><input type="number" id="a1p" value="62"><span class="unit">mm</span><label for="a1n">근거리</label><input type="number" id="a1n" value="40"><span class="unit">cm</span></div>
+      <div class="inl" style="margin-top:6px"><label for="a1d">원거리 사위</label><input type="number" id="a1d" value="-2" step="0.5"><label for="a1m">근거리 사위</label><input type="number" id="a1m" value="-12" step="0.5"></div>
+      <div class="out" id="a1o"></div></div>
+    <div class="panel calc"><h3>Gradient AC/A</h3><div class="f">AC/A = (가입 전 − 가입 후 근거리 사위) ÷ 가입 렌즈 · +렌즈 가입 기준</div>
+      <div class="inl"><label for="a2b">가입 전</label><input type="number" id="a2b" value="-12" step="0.5"><label for="a2a">가입 후</label><input type="number" id="a2a" value="-14" step="0.5"><label for="a2l">렌즈</label><input type="number" id="a2l" value="1" step="0.25"><span class="unit">D</span></div>
+      <div class="out" id="a2o"></div></div>
+    <div class="panel calc"><h3>분리 시표 · FSF 요구량</h3><div class="f">Δ = 100 × 간격(cm) ÷ 거리(cm)</div>
+      <div class="inl"><label for="c1s">간격</label><input type="number" id="c1s" value="5.6" step="0.1"><span class="unit">cm</span><label for="c1d">거리</label><input type="number" id="c1d" value="40"><span class="unit">cm</span></div>
+      <div class="out" id="c1o"></div><div class="tw"><table id="c1t"></table></div></div>
+    <div class="panel calc"><h3>가변 Tranaglyph</h3><div class="f">눈금 1칸 = 4 mm → Δ = 칸 × 0.4 × 100 ÷ 거리</div>
+      <div class="inl"><label for="c2n">눈금</label><input type="number" id="c2n" value="12"><span class="unit">칸</span><label for="c2d">거리</label><input type="number" id="c2d" value="40"><span class="unit">cm</span><select id="c2x" aria-label="방향"><option value="BO">교차(BO)</option><option value="BI">비교차(BI)</option></select></div>
+      <div class="out" id="c2o"></div></div>
+    <div class="panel calc"><h3>Aperture Rule</h3><div class="f">Δ = 카드 번호 × 2.5 · 단일구경 BO / 이중구경 BI</div>
+      <div class="inl"><label for="c3n">카드</label><input type="number" id="c3n" value="6" min="1" max="12"><select id="c3x" aria-label="구경"><option value="BO">단일구경</option><option value="BI">이중구경</option></select></div>
+      <div class="out" id="c3o"></div>
+      <div class="inl" style="margin-top:10px"><label for="c3t">목표 Δ</label><input type="number" id="c3t" value="15"><span class="unit">→ 카드</span><span class="out" id="c3r" style="margin:0;font-size:1rem"></span></div></div>
+    <div class="panel calc"><h3>렌즈 가입 시 조절 요구</h3><div class="f">요구(D) = 100 ÷ 거리(cm) − 렌즈 도수</div>
+      <div class="inl"><label for="c4d">거리</label><input type="number" id="c4d" value="40"><span class="unit">cm</span><label for="c4l">렌즈</label><input type="number" id="c4l" value="-2" step="0.25"><span class="unit">D</span></div>
+      <div class="out" id="c4o"></div></div>
+    <div class="panel calc"><h3>Bernell-O-Scope</h3><div class="f">A = 1/TD − P · C = P × LS − TS ÷ TD (P = +5.00 D, LS = 9.5 cm)</div>
+      <div class="inl"><label for="c5td">TD</label><input type="number" id="c5td" value="20"><span class="unit">cm</span><label for="c5ts">TS</label><input type="number" id="c5ts" value="6.0" step="0.1"><span class="unit">cm</span></div>
+      <div class="out" id="c5o"></div></div>
+    <div class="panel calc"><h3>렌즈 레버 — 융합 요구 변화</h3><div class="f">조절성 폭주 변화 = 렌즈 도수 × AC/A</div>
+      <div class="inl"><label for="c6b">기본 BO</label><input type="number" id="c6b" value="20"><span class="unit">Δ</span><label for="c6l">렌즈</label><input type="number" id="c6l" value="2" step="0.25"><span class="unit">D</span><label for="c6a">AC/A</label><input type="number" id="c6a" value="6" step="0.5"></div>
+      <div class="out" id="c6o"></div></div>
+    <div class="panel calc"><h3>변화 판정</h3><div class="f">교재 5.2 실무 오차 범위 밖이면 “변화”</div>
+      <div class="inl"><select id="c7k" aria-label="지표"><option value="npc">NPC 분리점 (±2 cm)</option><option value="cpm">용이성 cpm (±3)</option><option value="ph">사위량 (±2Δ)</option><option value="fv">융합여유 분리점 (±4Δ)</option><option value="npa">조절근점 (±1 cm)</option></select></div>
+      <div class="inl" style="margin-top:6px"><label for="c7a">이전</label><input type="number" id="c7a" value="12"><label for="c7b">이후</label><input type="number" id="c7b" value="6"></div>
+      <div class="out" id="c7o"></div></div>
+  </div>
+</section>
+
+<section id="p-help" hidden>
+<div class="panel guide">
+  <h3>기대값 · 3단계 판정 (정상 / 경계 / 비정상)</h3>
+  <div class="tw"><table><thead><tr><th>검사</th><th>정상</th><th>경계</th><th>비정상</th></tr></thead><tbody>
+   <tr><td>원거리 수평사위</td><td class="num">XP 0~2 · EP ≤1</td><td class="num">±2Δ 여유</td><td class="num">그 밖</td></tr>
+   <tr><td>근거리 수평사위</td><td class="num">XP 0~6</td><td class="num">±2Δ 여유</td><td class="num">그 밖</td></tr>
+   <tr><td>AC/A</td><td class="num">4~6</td><td class="num">—</td><td class="num">&lt;4 낮음 · &gt;6 높음</td></tr>
+   <tr><td>근거리 BO 분리</td><td class="num">≥20</td><td class="num">15~19.9</td><td class="num">&lt;15</td></tr>
+   <tr><td>근거리 BI 분리</td><td class="num">≥16</td><td class="num">12~15.9</td><td class="num">&lt;12</td></tr>
+   <tr><td>원거리 BO / BI 분리</td><td class="num">≥15 / ≥5</td><td class="num">11~14.9 / 4~4.9</td><td class="num">&lt;11 / &lt;4</td></tr>
+   <tr><td>NPC 분리 / 회복 (조절 시표, 2.5 ± 2.5 / 4.5 ± 3.0 cm)</td><td class="num">≤5 / ≤7.5</td><td class="num">5.1~7.5 / 7.6~10.5 (+2 SD)</td><td class="num">그 밖 (반복 시 2 cm 이상 후퇴 = 퇴행)</td></tr>
+   <tr><td>조절력</td><td class="num">≥ 15 − 0.25 × 나이</td><td class="num">최소값 −1 D 이내</td><td class="num">그 밖</td></tr>
+   <tr><td>NRA / PRA</td><td class="num">+1.75~+2.50 / −1.50~−3.50</td><td class="num">+1.50~+2.75 / −1.00~−4.00</td><td class="num">그 밖</td></tr>
+   <tr><td>조절반응 (lag)</td><td class="num">+0.25~+0.75</td><td class="num">±0.25 여유</td><td class="num">그 밖 (낮으면 lead)</td></tr>
+   <tr><td>MAF / BAF / 융합용이성</td><td class="num">≥11 / ≥8 / ≥12</td><td class="num">8~10.9 / 5~7.9 / 8~11.9</td><td class="num">그 밖</td></tr>
+  </tbody></table></div>
+  <h3>판별 순서</h3>
+  <ol>
+    <li><b>관문</b> — 위험신호는 의뢰, 굴절·안경 문제는 해결 후 재검사로 멈춥니다. Worth 4 dot 억제·복시, 수직사위 2Δ 이상, 현성 편위는 경고와 함께 진행합니다.</li>
+    <li><b>조절</b> — 조절력이 최소값 미만이면 조절부족. 조절력이 정상이고 MAF가 플러스에서 실패하면 조절과다, 양방향이면 조절용이성부족.</li>
+    <li><b>버전스</b> — 근거리 외사위가 원거리보다 4Δ 넘게 크면 폭주부족, 근거리 내사위가 2Δ 넘게 크면 폭주과다, 원거리 내사위가 2Δ 넘게 크면 개산부족, 원거리 외사위가 2Δ 넘게 크면 개산과다(분석 도구 v2.2.7과 같은 차이 기준). 그 밖에 원·근 모두 같은 방향으로 벗어나면 기본형. 사위가 범위 안인데 근거리 BO·BI 분리점이 모두 낮으면 융합버전스기능이상.</li>
+    <li><b>근거 수와 가능성</b> — 해당 유형의 객관 근거가 3개 이상이면 높음, 2개면 중간, 1개면 낮음.</li>
+    <li><b>교차 확인</b> — AC/A가 유형과 맞지 않거나(폭주부족·개산부족 &lt;4 예상, 폭주과다·개산과다 &gt;6 예상), 폭주부족인데 BAF 마이너스 실패·폭주과다인데 BAF 플러스 실패처럼 간접 소견이 반대면 “모순”으로 표시합니다. NRA(+ 렌즈)는 PFV, PRA(− 렌즈)는 NFV를 반영합니다.</li>
+  </ol>
+  <h3>Sheard · Percival</h3>
+  <p><b>Sheard</b>: 보상 융합여유(흐림점, 없으면 분리점) ≥ 2 × 사위. 프리즘 = (2 × 사위 − 보상여유) ÷ 3, 외사위는 BI, 내사위는 BO, 0.25Δ 반올림.<br><b>Percival</b>: 근거리 BO·BI의 흐림점(없으면 분리점) 중 작은 쪽 ≥ 큰 쪽의 1/3. 프리즘 = 큰 쪽 ÷ 3 − 2 × 작은 쪽 ÷ 3, <b>기저는 큰 여력 쪽 방향</b>(큰 값에서 작은 여력을 빼는 방향 · 예: BO 30·BI 6 → BO 프리즘), 0.25Δ 반올림.</p>
+  <h3>시작 강도</h3>
+  <ul><li>융합 훈련: 측정 분리점의 1/2 → Tranaglyph 칸 수, Aperture Rule 카드(÷ 2.5, 내림, 최소 1)</li><li>Brock String: NPC 평균 분리점 + 3 cm에서 단일 확인 후 시작</li><li>Loose Lens Rock: 어려운 부호부터 ±0.50 D, − 렌즈 상한 = 측정 조절력의 1/2</li></ul>
+  <h3>쓰는 범위</h3>
+  <p>교육용 훈련 계획안입니다. 진단·처방이 아니며, 규칙에 맞지 않는 조합은 결론 대신 “판단 어려움”으로 남깁니다. 단일 검사값이나 자동 결과만으로 처방·훈련·의료적 조치를 결정하지 않습니다.</p>
+</div>
+</section>
+<div class="foot credit"><span>시기능훈련 처방 도구 v1.0 · Developed by Sejin Kim · 백석대학교 보건학부 안경광학과 · 양안시기능 검사 해석 도구와 같은 판정 기준</span><span>교육용 — 진단·처방 아님</span></div>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const ids=['age','w4n','w4d','vert','pd','pdD','pn','pnD','aca','bo1','bo2','bo3','bi1','bi2','bi3','dbo','dbi','n1b','n1r','n2b','n2r','n3b','n3r','vf','vfS','ampR','ampL','nra','pra','lag','mafR','mafRS','mafL','mafLS','baf','bafS'];
+const sel=new Set(['w4n','w4d','pdD','pnD','vfS','mafRS','mafLS','bafS']);
+const cks=['g0','g1','g3'];
+const P={
+ 'A 폭주부족':{age:22,w4n:'정상융합',w4d:'정상융합',vert:0,pd:2,pdD:'XP',pn:12,pnD:'XP',aca:2,bo1:8,bo2:12,bo3:6,bi1:12,bi2:20,bi3:14,n1b:12,n1r:18,n2b:14,n2r:20,n3b:16,n3r:22,ampR:11,ampL:11,nra:2,pra:-2.5,mafR:12,mafL:12,baf:8},
+ 'B 조절부족':{age:23,w4n:'정상융합',pd:1,pdD:'XP',pn:3,pnD:'XP',aca:4,bo1:18,bo2:26,bo3:18,bi1:12,bi2:20,bi3:14,n1b:5,n1r:7,n2b:5,n2r:7,n3b:5,n3r:8,ampR:5,ampL:5,nra:2,pra:-1,mafR:3,mafRS:'-',mafL:3,mafLS:'-',baf:2,bafS:'-'},
+ 'C 안경 문제':{age:22,g1:1,pd:1,pdD:'XP',pn:3,pnD:'XP',aca:4,bo1:18,bo2:26,bo3:18,bi1:12,bi2:20,bi3:14,n1b:5,n1r:7,ampR:11,ampL:11,nra:2,pra:-2.5,mafR:12,mafL:12,baf:8},
+ 'D 폭주과다(원자료)':{age:21,w4n:'정상융합',pd:1,pdD:'EP',pn:9,pnD:'EP',aca:7,bo1:22,bo2:28,bo3:18,bi1:4,bi2:8,bi3:3,n1b:4,n1r:6,n2b:4,n2r:6,n3b:4,n3r:6,ampR:11,ampL:11,nra:1.25,pra:-3,mafR:10,mafL:10,baf:3,bafS:'+'},
+ 'D 폭주과다(수정)':{age:21,w4n:'정상융합',pd:1,pdD:'EP',pn:9,pnD:'EP',aca:7,bo1:22,bo2:28,bo3:18,bi1:4,bi2:8,bi3:3,n1b:4,n1r:6,n2b:4,n2r:6,n3b:4,n3r:6,ampR:11,ampL:11,nra:2,pra:-1.25,mafR:11,mafL:11,baf:3,bafS:'-'},
+ 'E 조절용이성부족':{age:22,w4n:'정상융합',pd:1,pdD:'XP',pn:3,pnD:'XP',aca:4,bo1:18,bo2:26,bo3:18,bi1:12,bi2:20,bi3:14,n1b:5,n1r:7,ampR:11,ampL:11,nra:1.5,pra:-1.5,mafR:4,mafRS:'pm',mafL:4,mafLS:'pm',baf:3,bafS:'pm'},
+ '개산부족 예':{age:26,w4n:'정상융합',w4d:'정상융합',pd:8,pdD:'EP',pn:2,pnD:'EP',aca:2,bo1:16,bo2:22,bo3:12,bi1:12,bi2:20,bi3:14,dbo:18,dbi:2,n1b:4,n1r:6,ampR:9.5,ampL:9.5,nra:2,pra:-2.5,mafR:11,mafL:11,baf:9},
+ '개산과다 예':{age:16,w4n:'정상융합',w4d:'우안 억제',pd:18,pdD:'XP',pn:4,pnD:'XP',aca:7.5,bo1:18,bo2:24,bo3:14,bi1:13,bi2:20,bi3:12,dbo:8,dbi:8,n1b:5,n1r:7,ampR:12,ampL:12,nra:2,pra:-2.5,mafR:11,mafL:11,baf:8},
+ '융합버전스 예':{age:23,w4n:'정상융합',pd:1,pdD:'XP',pn:3,pnD:'XP',aca:5,bo1:6,bo2:9,bo3:4,bi1:5,bi2:8,bi3:4,n1b:6,n1r:8,n2b:6,n2r:8,vf:6,vfS:'pm',ampR:11,ampL:11,nra:1.5,pra:-1.5,mafR:11,mafL:11,baf:3,bafS:'pm'},
+ '비우기':{}
+};
+function load(name){const d=P[name];
+ ids.forEach(i=>{const el=$(i);el.value=d[i]!==undefined?d[i]:(i==='pdD'||i==='pnD'?'XP':'')});
+ cks.forEach(i=>$(i).checked=!!d[i]);
+ $('exbanner').hidden=name==='비우기';
+ document.querySelectorAll('#presets button').forEach(b=>b.classList.toggle('on',b.dataset.k===name));
+ run();}
+const pr=$('presets');Object.keys(P).forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=k;b.dataset.k=k;b.onclick=()=>load(k);pr.appendChild(b)});
+
+const has=v=>v!==null&&v!==undefined&&!isNaN(v);
+const r1=x=>Math.round(x*10)/10;
+const q=x=>Math.round(x*4)/4;
+const fmt=(v,u='')=>has(v)?`${r1(v)}${u}`:'—';
+const avg=a=>{a=a.filter(has);return a.length?a.reduce((s,x)=>s+x,0)/a.length:null};
+// 내부 부호: XP −, EP +
+function signed(v,d){if(d==='Ortho')return 0;if(!has(v))return null;return d==='EP'?v:-v}
+function phTxt(s){if(!has(s))return '미입력';if(s===0)return 'Ortho';return `${s<0?'XP':'EP'} ${Math.abs(s)}Δ`}
+const ST={ok:['ok','정상'],bd:['warn','경계'],bad:['bad','비정상'],na:['na','평가 제한']};
+const pill=(c,t)=>`<span class="pill p-${c}">${t}</span>`;
+const stP=s=>pill(ST[s][0],ST[s][1]);
+function rng(v,min,max,pad){if(!has(v))return 'na';if(v>=min&&v<=max)return 'ok';if(v>=min-pad&&v<=max+pad)return 'bd';return 'bad'}
+function minC(v,min,b){if(!has(v))return 'na';if(v>=min)return 'ok';if(v>=b)return 'bd';return 'bad'}
+const off=s=>s==='bd'||s==='bad';
+const failTxt={'+':'플러스','-':'마이너스','pm':'양방향','BO':'BO','BI':'BI'};
+
+let summary='';
+function run(){
+ const v={};ids.forEach(i=>{const el=$(i);v[i]=sel.has(i)?el.value:(el.value===''?null:Number(el.value))});
+ cks.forEach(i=>v[i]=$(i).checked);
+ const age=v.age, D=signed(v.pd,v.pdD), N=signed(v.pn,v.pnD);
+ const hof=has(age)?15-0.25*age:null; $('hofv').textContent=has(hof)?`최소 조절력 ${hof.toFixed(2)} D`:'';
+ const amps=[v.ampR,v.ampL].filter(has); const amp=amps.length?Math.min(...amps):null;
+ const nb=[v.n1b,v.n2b,v.n3b].filter(has), npcAvg=avg(nb), npcRAvg=avg([v.n1r,v.n2r,v.n3r]);
+ const npcReg=nb.length>=2&&(nb[nb.length-1]-nb[0])>=2;
+ $('npcv').textContent=has(npcAvg)?`평균 ${r1(npcAvg)} / ${fmt(npcRAvg)} cm${npcReg?' · 반복 시 후퇴(퇴행)':''}`:'';
+ const mafs=[v.mafR,v.mafL].filter(has); const maf=mafs.length?Math.min(...mafs):null;
+ const mafS=v.mafRS||v.mafLS;
+ const w4=`${v.w4n} ${v.w4d}`; const supp=/억제/.test(w4), dip=/복시/.test(w4);
+ let html='';
+ // ---------- 1 관문
+ let stop=null; const gw=[];
+ if(v.g0) stop={t:'훈련 중단 → 의료기관 의뢰',d:'위험신호가 있으면 시기능훈련 대상이 아닙니다. 발생 시점·경과·동반 증상을 확인하고 의뢰를 우선합니다.'};
+ else if(v.g1) stop={t:'훈련 보류 → 굴절·안경 문제 먼저 해결',d:'교정·재조제·피팅 조정 후 2~4주 착용하고 같은 조건에서 재검사합니다. 그때도 기능값이 범위를 벗어나고 증상이 남을 때만 훈련을 검토합니다.'};
+ if(supp) gw.push(`Worth 4 dot 억제(${[v.w4n,v.w4d].filter(x=>/억제/.test(x)).join(', ')}) → 융합 훈련 전에 억제 제거 훈련 선행 (TV Trainer, 적녹 필터+펜라이트, Tranaglyph 510·515)`);
+ if(dip) gw.push('Worth 4 dot 복시 → 복시가 지속적이거나 새로 생겼다면 의뢰를 먼저 검토하고, 사위성이면 프리즘·훈련 범위를 재확인');
+ if(has(v.vert)&&v.vert>=2) gw.push(`수직사위 ${v.vert}Δ (2Δ 이상) → 수직 성분을 먼저 처리(수직 프리즘·재검, 필요 시 의뢰)한 뒤 수평 훈련 계획`);
+ if(v.g3) gw.push('현성 편위 → 사시 동반 여부 의뢰 검토. 아래 계획은 비사시성 프로그램 기준');
+ html+=`<div class="panel step ${stop?'stop':''}"><h2><span class="n">1</span>훈련 전 관문</h2>
+  <div>${pill(v.g0?'bad':'ok','위험신호 '+(v.g0?'있음':'없음'))}${pill(v.g1?'bad':'ok','굴절·안경 '+(v.g1?'문제':'통과'))}${pill(supp?'warn':(v.w4n||v.w4d)?'ok':'na','억제 '+(supp?'있음':(v.w4n||v.w4d)?'없음':'미입력'))}${pill(has(v.vert)&&v.vert>=2?'warn':'ok','수직 '+(has(v.vert)?v.vert+'Δ':'—'))}${pill(v.g3?'warn':'ok','현성 편위 '+(v.g3?'있음':'없음'))}</div>
+  ${stop?`<div class="msg m-bad"><b>${stop.t}</b><br>${stop.d}</div>`:''}${gw.map(w=>`<div class="msg m-warn">${w}</div>`).join('')}</div>`;
+
+ // ---------- 2 영역별 판정
+ const S={};
+ S.D=has(D)?rng(D,-2,1,2):'na'; S.N=has(N)?rng(N,-6,0,2):'na';
+ S.aca=has(v.aca)?(v.aca<4||v.aca>6?'bad':'ok'):'na';
+ S.bo=minC(v.bo2,20,15); S.bi=minC(v.bi2,16,12); S.dbo=minC(v.dbo,15,11); S.dbi=minC(v.dbi,5,4);
+ const sb=!has(npcAvg)?'na':npcAvg<=5?'ok':npcAvg<=7.5?'bd':'bad'; const sr=!has(npcRAvg)?'na':npcRAvg<=7.5?'ok':npcRAvg<=10.5?'bd':'bad'; S.npc=[sb,sr].includes('bad')?'bad':[sb,sr].includes('bd')?'bd':(sb==='na'?sr:sb);
+ S.amp=(!has(amp)||!has(hof))?'na':amp>=hof?'ok':amp>=hof-1?'bd':'bad';
+ S.nra=rng(v.nra,1.75,2.5,0.25); S.pra=rng(v.pra,-3.5,-1.5,0.5); S.lag=rng(v.lag,0.25,0.75,0.25);
+ S.maf=minC(maf,11,8); S.baf=minC(v.baf,8,5); S.vf=minC(v.vf,12,8);
+ const rows=[
+  ['원거리 수평사위',phTxt(D),'XP 0~2 · EP ≤1',S.D],
+  ['근거리 수평사위',phTxt(N),'XP 0~6',S.N],
+  ['AC/A',has(v.aca)?`${v.aca} Δ/D`+(v.aca<4?' (낮음)':v.aca>6?' (높음)':''):'미입력','4~6',S.aca],
+  ['근거리 BO',`${fmt(v.bo1)}/${fmt(v.bo2)}/${fmt(v.bo3)}`,'분리 ≥20',S.bo],
+  ['근거리 BI',`${fmt(v.bi1)}/${fmt(v.bi2)}/${fmt(v.bi3)}`,'분리 ≥16',S.bi],
+  ['원거리 BO / BI 분리',`${fmt(v.dbo)} / ${fmt(v.dbi)}`,'≥15 / ≥5',S.dbo==='na'?S.dbi:(S.dbi==='na'?S.dbo:([S.dbo,S.dbi].includes('bad')?'bad':[S.dbo,S.dbi].includes('bd')?'bd':'ok'))],
+  ['NPC 평균 분리/회복',has(npcAvg)?`${r1(npcAvg)} / ${fmt(npcRAvg)} cm${npcReg?' · 퇴행':''}`:'미입력','2.5±2.5 / 4.5±3.0',S.npc],
+  ['조절력 (낮은 눈)',fmt(amp,' D'),has(hof)?`≥ ${hof.toFixed(2)} D`:'나이 필요',S.amp],
+  ['NRA / PRA',`${has(v.nra)?(v.nra>0?'+':'')+v.nra.toFixed(2):'—'} / ${has(v.pra)?v.pra.toFixed(2):'—'}`,'+1.75~+2.50 / −1.50~−3.50',[S.nra,S.pra].includes('bad')?'bad':[S.nra,S.pra].includes('bd')?'bd':(S.nra==='na'&&S.pra==='na'?'na':'ok')],
+  ['조절반응',has(v.lag)?`${v.lag>0?'+':''}${v.lag.toFixed(2)} D${v.lag<0.25?' (lead 경향)':v.lag>0.75?' (lag 증가)':''}`:'미입력','+0.25~+0.75',S.lag],
+  ['MAF (낮은 눈)',has(maf)?`${maf} cpm${mafS?' · '+failTxt[mafS]+' 실패':''}`:'미입력','≥11',S.maf],
+  ['BAF',has(v.baf)?`${v.baf} cpm${v.bafS?' · '+failTxt[v.bafS]+' 실패':''}`:'미입력','≥8',S.baf],
+  ['융합용이성',has(v.vf)?`${v.vf} cpm${v.vfS?' · '+failTxt[v.vfS]+' 실패':''}`:'미입력','≥12',S.vf],
+ ];
+ // Sheard (blur first) / Percival (break)
+ let sp=''; let sheardFail=false, sheardP=null, sheardDir='';
+ if(has(N)&&N!==0){const ph=Math.abs(N);const exo=N<0;const res=exo?(has(v.bo1)?v.bo1:v.bo2):(has(v.bi1)?v.bi1:v.bi2);const used=exo?(has(v.bo1)?'BO 흐림':'BO 분리'):(has(v.bi1)?'BI 흐림':'BI 분리');
+  if(has(res)){const raw=(2*ph-res)/3; sheardP=q(raw); sheardDir=exo?'BI':'BO'; sheardFail=res<2*ph;
+   sp+=`<tr><td>Sheard (근거리 ${exo?'XP':'EP'})</td><td class="num">${used} ${res} vs 2 × ${ph} = ${2*ph}</td><td class="num">${sheardP>0?`${sheardP.toFixed(2)}Δ ${sheardDir}`:'산출 안 됨'}</td><td>${pill(sheardFail?'bad':'ok',sheardFail?'미충족':'충족')}</td></tr>`;}}
+ const pBO=has(v.bo1)?v.bo1:v.bo2, pBI=has(v.bi1)?v.bi1:v.bi2;
+ if(has(pBO)&&has(pBI)){const G=Math.max(pBO,pBI),L=Math.min(pBO,pBI);const raw=G/3-2*L/3;const p=q(raw);const dir=pBO===pBI?'—':(pBO>pBI?'BO':'BI');
+  sp+=`<tr><td>Percival (근거리, 흐림점 우선)</td><td class="num">BO ${has(v.bo1)?'흐림':'분리'} ${pBO} · BI ${has(v.bi1)?'흐림':'분리'} ${pBI} → 작은 쪽 ${L} vs 큰 쪽 ${G} ÷ 3 = ${r1(G/3)}</td><td class="num">${p>0?`${p.toFixed(2)}Δ ${dir}`:'필요성 낮음'}</td><td>${pill(L>=G/3?'ok':'bad',L>=G/3?'충족':'미충족')}</td></tr>`;}
+ html+=`<div class="panel step"><h2><span class="n">2</span>영역별 판정 · 프리즘 기준</h2><div class="tw"><table><thead><tr><th>검사</th><th>값</th><th>기준</th><th>판정</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td>${stP(r[3])}</td></tr>`).join('')}${sp}</tbody></table></div></div>`;
+
+ if(stop){html+=`<div class="panel step"><h2><span class="n">3</span>판별 · 처방</h2><p class="note">관문에서 멈췄습니다. 관문 문제를 해결하고 재검사한 값으로 다시 입력하세요.</p></div>`;$('out').innerHTML=html;summary='';return;}
+
+ // ---------- 3 판별
+ const warn=[]; let acc=null; const aev=[];
+ if(S.amp==='bad'||S.amp==='bd'&&(mafS==='-'||S.pra==='bad')){acc='AI';aev.push(`조절력 ${amp} D < 최소 ${hof.toFixed(2)} D`);if(off(S.pra)&&v.pra>-1.5)aev.push(`PRA ${v.pra} 감소`);if(has(v.lag)&&v.lag>0.75)aev.push(`lag ${v.lag} D 증가`);if(mafS==='-'||v.bafS==='-')aev.push('마이너스 실패');}
+ else if(off(S.maf)){
+  if(mafS==='+'){acc='AE';aev.push(`MAF ${maf} cpm, 플러스 실패`);if(has(v.nra)&&v.nra<1.75)aev.push(`NRA +${v.nra} 감소`);if(has(v.lag)&&v.lag<0.25)aev.push('lead 경향');}
+  else if(mafS==='pm'){acc='AIF';aev.push(`조절력 정상, MAF ${maf} cpm 양방향 실패`);if(off(S.baf))aev.push(`BAF ${v.baf} cpm 저하`);if(off(S.nra))aev.push('NRA 저하');if(off(S.pra))aev.push('PRA 저하');}
+  else if(mafS==='-'){warn.push('조절력은 정상인데 MAF가 마이너스에서만 실패합니다. 조절력을 반복 측정해 조절지속능력부족 여부를 확인하세요.');}
+  else warn.push('MAF가 낮지만 실패 방향이 기록되지 않았습니다. 실패 방향을 기록해야 조절 유형을 정할 수 있습니다.');}
+ let ver=null; const vev=[];
+ if(has(D)&&has(N)){
+  const nearMoreExo=D-N, nearMoreEso=N-D; // 부호: XP −
+  const nOff=off(S.N)||sheardFail, dOff=off(S.D);
+  if(nearMoreExo>4&&N<0&&nOff){ver='CI';vev.push(`근거리 ${phTxt(N)} — 원거리 ${phTxt(D)}보다 외사위 ${nearMoreExo}Δ 큼`);}
+  else if(nearMoreEso>2&&N>0&&nOff){ver='CE';vev.push(`근거리 ${phTxt(N)} — 원거리 ${phTxt(D)}보다 내사위 ${nearMoreEso}Δ 큼`);}
+  else if(nearMoreExo>2&&D>0&&dOff){ver='DI';vev.push(`원거리 ${phTxt(D)} — 근거리 ${phTxt(N)}보다 내사위 큼`);}
+  else if(nearMoreEso>2&&D<0&&dOff){ver='DE';vev.push(`원거리 ${phTxt(D)} — 근거리 ${phTxt(N)}보다 외사위 큼`);}
+  else if(D<0&&N<0&&dOff&&off(S.N)){ver='BX';vev.push(`원·근 외사위 비슷 (${phTxt(D)} / ${phTxt(N)})`);}
+  else if(D>0&&N>0&&dOff&&off(S.N)){ver='BE';vev.push(`원·근 내사위 비슷 (${phTxt(D)} / ${phTxt(N)})`);}
+  else if(!nOff&&!dOff&&off(S.bo)&&off(S.bi)){ver='FVD';vev.push(`사위 범위 내, 근거리 BO 분리 ${v.bo2}·BI 분리 ${v.bi2} 모두 저하`);}
+  else if(!nOff&&!dOff&&(off(S.bo)||off(S.bi))) warn.push(`사위는 범위 내인데 ${off(S.bo)?'BO':'BI'} 한쪽만 낮습니다. 재측정하거나 BAF·융합용이성과 함께 판단하세요.`);
+  else if(nOff||dOff) warn.push('사위가 범위를 벗어났지만 원·근 패턴이 어느 유형 규칙에도 맞지 않습니다. 측정 조건과 반복성을 확인하세요.');
+ } else warn.push('원·근거리 수평사위를 모두 입력해야 버전스 유형을 판별합니다.');
+ if(ver){
+  const a=v.aca;
+  if(ver==='CI'){if(off(S.bo))vev.push(`근거리 BO 분리 ${v.bo2}Δ 감소`);if(sheardFail)vev.push('Sheard 미충족');if(off(S.npc))vev.push(`NPC 평균 ${r1(npcAvg)} cm`);if(npcReg)vev.push('NPC 반복 시 퇴행');if(has(a)&&a<4)vev.push(`AC/A ${a} 낮음`);if(has(v.nra)&&v.nra<1.75)vev.push('NRA 감소');if(v.bafS==='+')vev.push('BAF 플러스 실패');if(v.vfS==='BO')vev.push('융합용이성 BO 실패');}
+  if(ver==='CE'){if(off(S.bi))vev.push(`근거리 BI 분리 ${v.bi2}Δ 감소`);if(sheardFail)vev.push('Sheard 미충족');if(has(a)&&a>6)vev.push(`AC/A ${a} 높음`);if(has(v.pra)&&v.pra>-1.5)vev.push('PRA 감소');if(v.bafS==='-')vev.push('BAF 마이너스 실패');if(has(v.lag)&&v.lag>0.75)vev.push('lag 증가');if(v.vfS==='BI')vev.push('융합용이성 BI 실패');}
+  if(ver==='DI'){if(off(S.dbi))vev.push(`원거리 BI 분리 ${v.dbi}Δ 감소`);if(has(a)&&a<4)vev.push(`AC/A ${a} 낮음`);}
+  if(ver==='DE'){if(off(S.dbo))vev.push(`원거리 BO 분리 ${v.dbo}Δ 감소`);if(has(a)&&a>6)vev.push(`AC/A ${a} 높음`);if(supp)vev.push('억제 소견');}
+  if(ver==='BX'){if(off(S.bo))vev.push('근거리 BO 감소');if(off(S.dbo))vev.push('원거리 BO 감소');if(has(a)&&a>=4&&a<=6)vev.push(`AC/A ${a} 정상`);}
+  if(ver==='BE'){if(off(S.bi))vev.push('근거리 BI 감소');if(off(S.dbi))vev.push('원거리 BI 감소');if(has(a)&&a>=4&&a<=6)vev.push(`AC/A ${a} 정상`);}
+  if(ver==='FVD'){if(v.bafS==='pm')vev.push('BAF 양방향 실패');if(v.vfS==='pm')vev.push('융합용이성 양방향 실패');if(!off(S.maf))vev.push('MAF 정상');}
+  if(has(a)){
+   if((ver==='CI'||ver==='DI')&&a>=4) warn.push(`${NM[ver].ko}인데 AC/A ${a}가 낮지 않습니다(기준 &lt;4). 기본형과 비교하세요.`);
+   if((ver==='CE'||ver==='DE')&&a<=6) warn.push(`${NM[ver].ko}인데 AC/A ${a}가 높지 않습니다(기준 &gt;6). 기본형과 비교하세요.`);
+   if((ver==='BX'||ver==='BE')&&(a<4||a>6)) warn.push(`기본형인데 AC/A ${a}가 4~6 밖입니다. ${a<4?(ver==='BX'?'폭주부족':'개산부족'):(ver==='BX'?'개산과다':'폭주과다')} 쪽과 비교하세요.`);}
+  if(ver==='CI'&&v.bafS==='-'&&!acc) warn.push('<b>모순</b>: 폭주부족은 플러스 렌즈(NRA·BAF 플러스)에서 막히는 것이 일반적입니다. BAF 마이너스 실패는 반대 방향입니다. 자료를 확인하세요.');
+  if(ver==='CE'&&v.bafS==='+'&&!acc) warn.push('<b>모순</b>: 폭주과다는 마이너스 렌즈(PRA·BAF 마이너스)에서 막히는 것이 일반적입니다. 플러스 렌즈는 근거리 내사위를 줄여 오히려 쉬워야 합니다. 자료를 확인하세요.');
+  if(ver==='CE'&&has(v.nra)&&v.nra<1.75&&!(has(v.pra)&&v.pra>-1.5)&&!acc) warn.push('<b>모순</b>: NRA(+ 렌즈)는 PFV를 반영합니다. 폭주과다에서는 PRA 감소가 예상됩니다.');
+ }
+ if(!ver&&!acc&&off(S.baf)&&!off(S.maf)&&has(maf)) warn.push(`MAF 정상·BAF ${v.baf} cpm 저하 → 버전스 쪽 문제 의심. ${v.bafS==='+'?'플러스 실패는 PFV(BO) 쪽':v.bafS==='-'?'마이너스 실패는 NFV(BI) 쪽':'실패 방향을 기록하세요'}.`);
+ const dx=[];if(ver)dx.push([ver,vev]);if(acc)dx.push([acc,aev]);
+ const lvl=n=>n>=3?['bad','가능성 높음']:n>=2?['warn','가능성 중간']:['na','가능성 낮음'];
+ let dxHtml='';
+ if(!dx.length){dxHtml=`<div class="dx"><span class="name">${warn.length?'판단 어려움':'뚜렷한 이상 없음'}</span></div><p class="note">${warn.length?'규칙에 맞는 결론이 없습니다. 아래 메시지를 확인하세요.':'입력한 값이 모두 기대 범위 안이면 시기능훈련 대상이 아닙니다. 증상이 있으면 굴절·작업환경·지속시간을 다시 확인하세요.'}</p>`;}
+ else dxHtml=dx.map(([d,e],i)=>{const L=lvl(e.length);return `<div class="dx" style="${i?'margin-top:10px':''}"><span class="name">${NM[d].ko}</span><span class="en">${NM[d].en}</span>${pill(L[0],`근거 ${e.length} · ${L[1]}`)}${i?pill('warn','동반'):''}</div><ul class="ev">${e.map(x=>`<li>${x}</li>`).join('')}</ul>`}).join('');
+ html+=`<div class="panel step"><h2><span class="n">3</span>판별</h2>${dxHtml}${warn.map(w=>`<div class="msg m-warn">${w}</div>`).join('')}</div>`;
+ if(!dx.length){$('out').innerHTML=html+copyBox();summary=mkSum(v,D,N,null,warn);bindCopy();return;}
+
+ const main=dx[0][0]; const R=RX[main];
+ // ---------- 4 1차 처치
+ let first=R.first;
+ if(['CI','BX'].includes(main)&&sheardP>0) first+=` (Sheard 검토 프리즘 ${sheardP.toFixed(2)}Δ BI — 훈련이 어렵거나 불가능한 경우 참고)`;
+ if(main==='CE'&&has(v.aca)&&has(N)){const add=q(Math.abs(N)/v.aca); first+=` · 근거리 EP ${Math.abs(N)}Δ ÷ AC/A ${v.aca} ≈ +${add.toFixed(2)} D가 계산상 정위화 가입도 (시험착용으로 확인)`;}
+ html+=`<div class="panel step"><h2><span class="n">4</span>1차 처치</h2><p>${first}</p>${dx[1]?`<p class="note">동반 ${NM[dx[1][0]].ko}: ${RX[dx[1][0]].first}</p>`:''}</div>`;
+
+ // ---------- 5 훈련 처방
+ const s={};
+ if(has(v.bo2)){s.bo=Math.max(1,Math.round(v.bo2/2));s.arS=Math.max(1,Math.floor(s.bo/2.5));}
+ if(has(v.bi2)){s.bi=Math.max(1,Math.round(v.bi2/2));s.arD=Math.max(1,Math.floor(s.bi/2.5));}
+ if(has(npcAvg))s.brock=r1(npcAvg+3);
+ if(has(amp))s.llrMax=Math.floor(amp/2*4)/4;
+ const chips=[];
+ const dirBO=['CI','BX','DE','FVD'].includes(main), dirBI=['CE','BE','DI','FVD'].includes(main);
+ if(supp)chips.push('억제 제거 선행');
+ if(dirBO&&s.bo)chips.push(`Tranaglyph BO ${s.bo}Δ (40 cm ${s.bo}칸)`);
+ if(dirBI&&s.bi)chips.push(`Tranaglyph BI ${s.bi}Δ (40 cm ${s.bi}칸)`);
+ if(['CI','BX','DE'].includes(main)&&s.brock)chips.push(`Brock 가까운 구슬 ${s.brock} cm부터`);
+ if(dirBO&&s.arS)chips.push(`AR 단일구경 AP${s.arS} (${s.arS*2.5}Δ)부터`);
+ if(dirBI&&s.arD)chips.push(`AR 이중구경 AP${s.arD} (${s.arD*2.5}Δ)부터`);
+ if(has(v.vf)&&off(S.vf))chips.push(`프리즘 플리퍼: 측정 범위 안 낮은 요구부터 (실패 ${v.vfS?failTxt[v.vfS]:'방향 미입력'})`);
+ const a2=acc||(['AI','AE','AIF'].includes(main)?main:null);
+ if(a2){chips.push(`Loose Lens Rock ${a2==='AI'?'−0.50 D':a2==='AE'?'+0.50 D':'±0.50 D'}부터`);if(s.llrMax)chips.push(`− 렌즈 상한 −${s.llrMax.toFixed(2)} D`);}
+ html+=`<div class="panel step"><h2><span class="n">5</span>훈련 처방</h2>
+  <div class="dir"><div class="box"><div class="k">첫 스트레스 방향</div><div class="v ${R.cls||''}">${R.dir}</div></div><div class="box"><div class="k">핵심 피드백</div><div class="v" style="font-size:.95rem">${R.fb}</div></div><div class="box"><div class="k">2단계에 추가할 반대 방향</div><div class="v" style="font-size:.95rem">${R.opp}</div></div></div>
+  <div class="start">${chips.map(c=>`<span class="s">${c}</span>`).join('')}</div>
+  <div style="margin-top:8px">${R.ph.map((p,i)=>`<div class="phase"><div class="tag">${['1단계','2단계','3단계'][i]}<span>${['1~8주','9~16주','17~24주'][i]}</span></div><div>${p[0]}<div class="note">종료점: ${p[1]}</div></div></div>`).join('')}</div>
+  ${R.caution?`<div class="msg m-warn">${R.caution}</div>`:''}${dx[1]?`<div class="msg m-warn">동반 ${NM[dx[1][0]].ko}: 1단계부터 ${RX[dx[1][0]].dir} 조절 훈련(Loose Lens Rock·Hart Chart)을 병행합니다.</div>`:''}</div>`;
+ html+=`<div class="panel step"><h2><span class="n">6</span>재평가</h2><p>${R.re}</p><p class="note">시점: 프로그램 중간(Aperture Rule을 시작할 수 있을 때)과 종료 시 · 항상 훈련 <b>전</b>에 같은 교정·거리·조명으로 측정 · 사위량은 잘 변하지 않는 지표입니다.</p></div>`;
+ summary=mkSum(v,D,N,dx,warn,first,chips,R);
+ $('out').innerHTML=html+copyBox();bindCopy();
+}
+function copyBox(){return `<div class="panel step"><h2><span class="n">↗</span>결과 요약 복사</h2><p class="note">기록지·팀활동지·AI 검산 칸에 붙여 넣을 요약입니다.</p><div class="tools"><button type="button" id="cpy">요약 복사</button><span class="note" id="cpym"></span></div><textarea class="copy" id="cpt" readonly aria-label="결과 요약"></textarea></div>`}
+function bindCopy(){const t=$('cpt');if(!t)return;t.value=summary;$('cpy').onclick=()=>{const done=()=>{$('cpym').textContent='복사했습니다'};try{navigator.clipboard.writeText(summary).then(done,()=>{t.select();$('cpym').textContent='선택됨 — Ctrl+C로 복사'})}catch(e){t.select();$('cpym').textContent='선택됨 — Ctrl+C로 복사'}}}
+const strip=s=>String(s).replace(/<[^>]+>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+function mkSum(v,D,N,dx,warn,first,chips,R){
+ const L=[`[VT 처방 엔진 요약 · 교육용]`,`나이 ${v.age??'—'} · 원거리 ${phTxt(D)} · 근거리 ${phTxt(N)} · AC/A ${v.aca??'—'}`,`근거리 BO ${v.bo1??'x'}/${v.bo2??'—'}/${v.bo3??'—'} · BI ${v.bi1??'x'}/${v.bi2??'—'}/${v.bi3??'—'} · NPC ${v.n1b??'—'}/${v.n1r??'—'} cm`,`조절력 ${v.ampR??'—'}/${v.ampL??'—'} D · NRA ${v.nra??'—'} · PRA ${v.pra??'—'} · MAF ${v.mafR??'—'}/${v.mafL??'—'} · BAF ${v.baf??'—'}`];
+ if(dx)L.push('판별: '+dx.map(([d,e])=>`${NM[d].ko}(근거 ${e.length}: ${e.join(', ')})`).join(' + '));else L.push('판별: 판단 어려움 또는 이상 없음');
+ if(warn.length)L.push('확인 필요: '+warn.map(strip).join(' / '));
+ if(first)L.push('1차 처치: '+strip(first));
+ if(R){L.push(`훈련 방향: ${R.dir} · 시작 강도: ${chips.join(', ')}`);R.ph.forEach((p,i)=>L.push(`${i+1}단계: ${p[0]} → 종료점 ${p[1]}`));}
+ return L.join('\n');}
+const NM={CI:{ko:'폭주부족',en:'CI'},CE:{ko:'폭주과다',en:'CE'},DI:{ko:'개산부족',en:'DI'},DE:{ko:'개산과다',en:'DE'},BX:{ko:'기본형외사위',en:'Basic exo'},BE:{ko:'기본형내사위',en:'Basic eso'},FVD:{ko:'융합버전스기능이상',en:'FVD'},AI:{ko:'조절부족',en:'AI'},AE:{ko:'조절과다',en:'AE'},AIF:{ko:'조절용이성부족',en:'AIF'}};
+const RX={
+ CI:{first:'<b>시기능훈련 1차</b> — AC/A가 낮아 가입도 효과가 적고, BI 프리즘은 근거가 약합니다(CITT).',dir:'폭주 · BO',cls:'bo',fb:'복시 → SILO·떠오름, 눈이 모이는 느낌',opp:'개산 · BI (Tranaglyph 515)',
+  ph:[['Brock String → Bug on String → Barrel Card · Lens Sorting · Loose Lens Rock · 가변 Tranaglyph BO 515 → 600 → 스포츠','Tranaglyph 30Δ BO, ±2.00 D 12 cpm, 의도적 폭주'],['고정 Tranaglyph BO jump + 루즈 프리즘 · Tranaglyph BI · Aperture Rule BO → BO/BI · FSF · ± 렌즈 병용','AR 12번(30Δ BO)·6번(15Δ BI), FSF 12 cm·6 cm'],['Tranaglyph + 적녹 플리퍼 · FSF 교대·회전 · Lifesaver card · Bernell-O-Scope','회전하는 Eccentric circles 선명 단일시']],
+  re:'NPC 3회 반복, 근거리 BO 흐림·분리·회복, NRA·BAF 실패 방향, 융합용이성, 증상 점수'},
+ CE:{first:'<b>근용 + 가입 1차</b> → 남은 BI 저하·증상에 시기능훈련. 잔여 근거리 내사위에는 BO 프리즘 고려.',dir:'개산 · BI',cls:'bi',fb:'복시 → SILO(Large Out), 벌어지는 느낌',opp:'폭주 · BO',
+  ph:[['Brock String(먼 구슬, 3 m 개산) → Bug on String · Lens Sorting · Loose Lens Rock(+부터) · 가변 Tranaglyph BI 515 → 600 → 스포츠','Brock 3 m 개산, Tranaglyph 15Δ BI, 단안 ±2.00 D 12 cpm'],['고정 Tranaglyph BI jump · Tranaglyph BO 추가 · Aperture Rule 이중구경 → BO/BI · FSF 투명 카드 BI','AR 12번·6번, FSF 12 cm·6 cm'],['Tranaglyph + 적녹 플리퍼 · FSF 교대·회전 · Lifesaver card','회전하는 Eccentric circles 선명 단일시']],
+  caution:'BI는 한 단계씩 — 두통·어지럼이 가장 잘 생기는 방향입니다.',re:'가입 착용·비착용 근거리 사위, 근거리 BI, PRA·BAF 실패 방향, 두통 빈도'},
+ DI:{first:'<b>원거리 BO 프리즘 1차</b> → 해결되지 않을 때 훈련. 성인 신규 원거리 내편위는 의료 평가를 먼저 확인합니다.',dir:'개산 · BI (근거리에서 시작)',cls:'bi',fb:'복시, SOLI',opp:'폭주 · BO',
+  ph:[['Brock String · Bug on String · 가변 Tranaglyph BI 515 → 600 → 스포츠 · 가정 Loose Lens Rock','Tranaglyph 15Δ BI, ±2.00 D 12 cpm'],['고정 Tranaglyph BI jump · Tranaglyph BO · Aperture Rule BI → BO · Eccentric circles BI','30Δ BO·15Δ BI, FSF 12 cm·6 cm'],['Tranaglyph·Eccentric circles BI를 1 m에서 → Bernell-O-Scope 원거리 세팅 · Stereo Trainer 909 · TV Trainer','원거리 선명 단일시']],
+  caution:'급성 발병이면 훈련 대상이 아닙니다 — 의뢰.',re:'원거리 사위·원거리 BI, 원거리 복시 빈도'},
+ DE:{first:'<b>시기능훈련 1차</b>(억제 제거 포함, 주 2회) + 필요 시 − 렌즈·BI 보조. 간헐성 외사시 동반 시 의뢰 검토.',dir:'억제 제거 → 폭주 · BO',cls:'bo',fb:'복시 인식(생리적·병리적), SILO(Small In)',opp:'개산 · BI',
+  ph:[['Brock String(근·원 생리적 복시) · 적녹 필터+펜라이트 · TV Trainer · Loose Lens Rock · Tranaglyph BO/BI 515 → 600','Brock 근·원 생리적 복시, 근거리 30Δ BO·15Δ BI'],['고정 Tranaglyph BO/BI jump · Aperture Rule · Bernell-O-Scope 제2도 타깃 · FSF','AR 12번·6번'],['중간거리(30 cm~1.5 m) Bernell-O-Scope·Tranaglyph → 원거리(3~6 m) Mirror stereoscope cheiroscopic tracing · 동향운동과 융합','중간·원거리 20Δ BO·10Δ BI']],
+  re:'원거리 사위·억제(원거리 Worth 4 dot), 원거리 BO, 편위 조절 빈도'},
+ BX:{first:'<b>시기능훈련 1차</b>, BI 프리즘 보조.',dir:'폭주 · BO',cls:'bo',fb:'복시 → SILO, 모이는 느낌',opp:'개산 · BI',
+  ph:[['폭주부족 1단계와 같음 — Brock String · Barrel Card · Tranaglyph BO 515 → 600','Tranaglyph 30Δ BO, ±2.00 D 12 cpm'],['폭주부족 2단계 + Tranaglyph 1 m','AR 12번·6번, FSF 12 cm·6 cm'],['원거리 Eccentric circles · Bernell-O-Scope 원거리 세팅 · Mirror stereoscope','원거리 20Δ BO·10Δ BI 수준, 원거리 단일시']],
+  re:'원·근거리 BO, NPC, 증상 점수'},
+ BE:{first:'원시 완전교정, 필요 시 BO 프리즘 → 시기능훈련 병행.',dir:'개산 · BI',cls:'bi',fb:'복시 → SILO(Large Out)',opp:'폭주 · BO',
+  ph:[['폭주과다 1단계와 같음 — Brock String 3 m 개산 · Tranaglyph BI 515 → 600','Brock 3 m 개산, Tranaglyph 15Δ BI'],['폭주과다 2단계 + Tranaglyph 1 m BI','AR 12번·6번, 20Δ BO·10Δ BI'],['원거리 Eccentric circles · Stereo Trainer 909 · Bernell-O-Scope 원거리','원거리 단일시']],
+  re:'원·근거리 BI, 원·근 사위, 증상 점수'},
+ FVD:{first:'<b>시기능훈련 1차</b> — 렌즈·프리즘 효과 없음. 주로 진료실 훈련.',dir:'BO · BI 양방향',fb:'복시, SILO, 운동감각',opp:'처음부터 양방향',
+  ph:[['Brock String · Bug on String · Lens Sorting · Loose Lens Rock · Tranaglyph BO → BO/BI (smooth) · Barrel Card','Tranaglyph 30Δ BO·15Δ BI'],['고정 Tranaglyph BO/BI jump · Aperture Rule BO/BI · FSF BO/BI · 프리즘 플리퍼 · ± 렌즈 병용','AR 12번·6번, FSF 12 cm·6 cm'],['Tranaglyph + 적녹 플리퍼 · FSF 교대·회전 · Lifesaver card','회전하는 Eccentric circles 선명 단일시']],
+  re:'근거리 BO·BI 분리점, BAF, 융합용이성 cpm, 증상 점수'},
+ AI:{first:'<b>근용 + 가입 고려 + 시기능훈련.</b> 조절력 저하 원인(약물·전신 요인)을 확인하고, 좌우 차이가 크거나 개선이 미미하면 의료 평가.',dir:'조절 자극 · − 렌즈',fb:'흐림, 당기는 느낌',opp:'조절 이완 · + 렌즈 (5~8주)',
+  ph:[['Lens Sorting · Loose Lens Rock(−부터) · Hart Chart rock · Brock String · Tranaglyph BO 515 → 600','단안 +2.00/−6.00 D 선명(성인: 조절력 1/2의 − 렌즈), Tranaglyph 30Δ BO'],['Loose Lens Rock ± 속도 · 양안 ± 플리퍼 + Bar Reader · 고정 Tranaglyph jump · Aperture Rule','단안 20 cpm, 양안 ±2.00 D 15 cpm, AR 12번·6번'],['± 렌즈 + Aperture Rule · Tranaglyph + 적녹 플리퍼 · FSF 회전 + ± 플리퍼','FSF 회전 + ±2.00 D에서 양안 단일시']],
+  re:'조절력(단안 push-up 3회), MAF 실패 방향, PRA, 조절반응, 지속 작업 시 흐림'},
+ AE:{first:'<b>시기능훈련 1차</b> — 렌즈 효과 적음. 과교정·가성근시를 먼저 배제합니다.',dir:'조절 이완 · + 렌즈',fb:'흐림, 풀리는 느낌',opp:'조절 자극 · − 렌즈 (5~6주)',
+  ph:[['Lens Sorting · Loose Lens Rock(+부터) · Brock String · Tranaglyph BI 515 → Hart Chart rock · Bug on String · 600','단안 +2.00 D 선명, Tranaglyph 15Δ BI'],['Loose Lens Rock ± 속도 · 고정 Tranaglyph BI jump · Tranaglyph BO · Aperture Rule BI → BO/BI · FSF BI','단안 20 cpm, 양안 15 cpm, AR 12번·6번'],['± 렌즈 + Aperture Rule · Tranaglyph + 적녹 플리퍼 · FSF 회전 + ± 플리퍼','FSF 회전 + ±2.00 D']],
+  re:'MAF·BAF 실패 방향, NRA, 조절반응(lead), 근업 후 원거리 흐림'},
+ AIF:{first:'<b>시기능훈련 1차</b> — 렌즈 효과 적음.',dir:'조절 이완·자극 양쪽 (속도)',fb:'흐림, 당김·풀림 느낌',opp:'처음부터 양쪽',
+  ph:[['Lens Sorting · Loose Lens Rock(느린 부호부터) · Hart Chart rock · Brock String · Tranaglyph BO/BI','단안 ±2.00 D 12 cpm'],['Loose Lens Rock ±2.00 D 속도 · 양안 ± 플리퍼 + Bar Reader · Tranaglyph + ± 렌즈','단안 20 cpm, 양안 15 cpm'],['FSF 회전 + ± 플리퍼 · Tranaglyph + 적녹 플리퍼','FSF 회전 + ±2.00 D에서 양안 단일시']],
+  re:'MAF·BAF(실패 방향별), NRA/PRA, 원↔근 전환 흐림'}
+};
+$('f').addEventListener('input',()=>{$('exbanner').hidden=true;run()});
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>{x.setAttribute('aria-selected',x===b);$(x.dataset.p).hidden=x!==b});try{localStorage.setItem('vt-tab',b.id)}catch(e){}});
+try{const t=localStorage.getItem('vt-tab');if(t&&$(t))$(t).click()}catch(e){}
+const g=id=>Number($(id).value);
+const o=(id,h)=>$(id).innerHTML=h;
+function calc(){
+ const pd=g('a1p'),nd=g('a1n'),ad=g('a1d'),an=g('a1m');if(nd>0){const dm=100/nd;const a=pd/10+(an-ad)/dm;o('a1o',`${q(a).toFixed(2)} Δ/D<small>${pd/10} + (${an} − ${ad}) ÷ ${dm.toFixed(2)} · ${a<4?'낮음 (&lt;4)':a>6?'높음 (&gt;6)':'정상 (4~6)'}</small>`)}
+ const b=g('a2b'),af=g('a2a'),l=g('a2l');if(l){const a=(b-af)/l;o('a2o',`${q(a).toFixed(2)} Δ/D<small>(${b} − ${af}) ÷ ${l} · ${a<4?'낮음 (&lt;4)':a>6?'높음 (&gt;6)':'정상 (4~6)'}</small>`)}
+ const s=g('c1s'),d=g('c1d');o('c1o',d>0?`${r1(100*s/d)} Δ<small>BO(교차) 또는 BI(비교차) 같은 크기</small>`:'—');
+ o('c1t','<thead><tr><th>거리</th>'+[50,40,35,30,25].map(x=>`<th>${x} cm</th>`).join('')+'</tr></thead><tbody><tr><td>Δ</td>'+[50,40,35,30,25].map(x=>`<td class="num">${r1(100*s/x)}</td>`).join('')+'</tr></tbody>');
+ const n=g('c2n'),d2=g('c2d');o('c2o',d2>0?`${r1(n*40/d2)} Δ ${$('c2x').value}<small>${d2} cm에서 1칸 = ${r1(40/d2)}Δ</small>`:'—');
+ const c=g('c3n'),x=$('c3x').value;o('c3o',`${r1(c*2.5)} Δ ${x}`+(x==='BI'&&c>7?'<small>이중구경 목표 범위(6~7번)를 넘습니다</small>':'<small>&nbsp;</small>'));
+ const t=g('c3t');o('c3r',t>0?`AP ${Math.ceil(t/2.5)} (${Math.ceil(t/2.5)*2.5}Δ)`:'—');
+ const d4=g('c4d'),l4=g('c4l');o('c4o',d4>0?`${(100/d4-l4).toFixed(2)} D<small>기본 요구 ${(100/d4).toFixed(2)} D, 렌즈 ${l4>0?'+':''}${l4.toFixed(2)} D</small>`:'—');
+ const td=g('c5td')/100,ts=g('c5ts');if(td>0){const A=1/td-5,C=5*9.5-ts/td;o('c5o',`A ${A.toFixed(2)} D · C ${r1(Math.abs(C))}Δ ${C>=0?'BO':'BI'}<small>${Math.abs(A)<0.13?'원거리 세팅':'근거리 쪽 세팅'}</small>`)}
+ const bb=g('c6b'),l6=g('c6l'),a6=g('c6a');const ch=l6*a6;o('c6o',`${r1(bb+ch)} Δ PFV 요구<small>${l6>0?'+':'−'} 렌즈가 조절성 폭주를 ${r1(Math.abs(ch))}Δ ${l6>0?'줄여 융합 요구 증가 (어려워짐)':'늘려 융합 요구 감소 (쉬워짐)'}</small>`);
+ const tol={npc:2,cpm:3,ph:2,fv:4,npa:1}[$('c7k').value];const dd=g('c7b')-g('c7a');
+ o('c7o',`${Math.abs(dd)>tol?'변화':'변화 없음'}<small>차이 ${r1(dd)} · 허용 오차 ±${tol}</small>`);
+}
+$('p-calc').addEventListener('input',calc);calc();
+load('A 폭주부족');
+})();
+</script>
+
+</body>
+</html>
